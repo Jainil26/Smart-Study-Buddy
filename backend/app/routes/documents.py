@@ -1,0 +1,45 @@
+import shutil
+from pathlib import Path
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
+
+router = APIRouter(prefix="/api/documents", tags=["Documents"])
+
+# Path to the uploads directory: backend/uploads
+UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
+
+
+@router.post("/upload")
+async def upload_pdf(file: UploadFile = File(...)):
+    """
+    Endpoint to upload a single PDF file and save it to backend/uploads/.
+    """
+    filename = file.filename or ""
+
+    # Verify that the uploaded file is a PDF (check content-type and file extension)
+    is_pdf_type = file.content_type == "application/pdf"
+    is_pdf_ext = filename.lower().endswith(".pdf")
+
+    if not (is_pdf_type or is_pdf_ext):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are allowed."
+        )
+
+    # Ensure the uploads directory exists
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Safely get the base filename
+    safe_filename = Path(filename).name
+
+    # Destination path for the saved file
+    file_path = UPLOAD_DIR / safe_filename
+
+    # Save the uploaded file to disk
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    return {
+        "success": True,
+        "filename": filename,
+        "saved_filename": safe_filename
+    }

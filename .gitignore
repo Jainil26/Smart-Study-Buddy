@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Uploaded PDF files
+backend/uploads/*
+!backend/uploads/.gitkeep
+
 # Distribution / packaging
 .Python
 build/
