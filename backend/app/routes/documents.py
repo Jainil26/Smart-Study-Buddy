@@ -2,6 +2,8 @@ import shutil
 from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
+from app.services.pdf_service import extract_text_from_pdf
+
 router = APIRouter(prefix="/api/documents", tags=["Documents"])
 
 # Path to the uploads directory: backend/uploads
@@ -43,3 +45,30 @@ async def upload_pdf(file: UploadFile = File(...)):
         "filename": filename,
         "saved_filename": safe_filename
     }
+
+
+@router.get("/{filename}/extract")
+async def extract_pdf_text(filename: str):
+    """
+    Endpoint to extract text page-by-page from an existing PDF file in backend/uploads/.
+    """
+    safe_filename = Path(filename).name
+    file_path = UPLOAD_DIR / safe_filename
+
+    if not file_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File '{filename}' not found in uploads directory."
+        )
+
+    try:
+        extraction_result = extract_text_from_pdf(file_path)
+        return {
+            "success": True,
+            **extraction_result
+        }
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to extract text from PDF."
+        )
