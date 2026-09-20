@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
+from app.services.chunk_service import chunk_document
 from app.services.pdf_service import extract_text_from_pdf
 
 router = APIRouter(prefix="/api/documents", tags=["Documents"])
@@ -72,3 +73,34 @@ async def extract_pdf_text(filename: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to extract text from PDF."
         )
+
+
+@router.get("/{filename}/chunks")
+async def get_document_chunks(filename: str):
+    """
+    Endpoint to inspect generated chunks for an uploaded PDF file in backend/uploads/.
+    """
+    safe_filename = Path(filename).name
+    file_path = UPLOAD_DIR / safe_filename
+
+    if not file_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File '{filename}' not found in uploads directory."
+        )
+
+    try:
+        extraction_result = extract_text_from_pdf(file_path)
+        chunks = chunk_document(extraction_result, chunk_size=500, overlap=50)
+        return {
+            "success": True,
+            "filename": filename,
+            "chunk_count": len(chunks),
+            "chunks": chunks
+        }
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate document chunks."
+        )
+
