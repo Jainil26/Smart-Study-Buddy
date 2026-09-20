@@ -10,6 +10,9 @@ __pycache__/
 backend/uploads/*
 !backend/uploads/.gitkeep
 
+# Environment variables
+.env
+
 # Distribution / packaging
 .Python
 build/

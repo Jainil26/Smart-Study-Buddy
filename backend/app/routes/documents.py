@@ -4,6 +4,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.services.chunk_service import chunk_document
 from app.services.pdf_service import extract_text_from_pdf
+from app.services.retrieval_service import search_document
 
 router = APIRouter(prefix="/api/documents", tags=["Documents"])
 
@@ -103,4 +104,52 @@ async def get_document_chunks(filename: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate document chunks."
         )
+
+
+@router.get("/{filename}/search")
+async def search_document_chunks_route(filename: str, q: str = "", top_k: int = 3):
+    """
+    Endpoint to search document chunks using cosine similarity on embeddings.
+    """
+    safe_filename = Path(filename).name
+    file_path = UPLOAD_DIR / safe_filename
+
+    if not file_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File '{filename}' not found in uploads directory."
+        )
+
+    if not q or not q.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query parameter 'q' cannot be empty."
+        )
+
+    if top_k <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query parameter 'top_k' must be a positive integer."
+        )
+
+    try:
+        results = search_document(file_path=file_path, query=q.strip(), top_k=top_k)
+        return {
+            "success": True,
+            "filename": filename,
+            "query": q.strip(),
+            "result_count": len(results),
+            "results": results
+        }
+    except ValueError as val_err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(val_err)
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to search document chunks: {exc}"
+        )
+
 
